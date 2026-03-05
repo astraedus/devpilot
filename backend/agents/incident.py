@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import textwrap
 from typing import Any
 
@@ -108,14 +109,28 @@ async def triage_incident(repo: str, run_id: int, logs: str) -> IncidentReport:
     )
 
     use_foundry = bool(settings.azure_project_connection_string)
+    use_anthropic = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    use_openai = bool(os.environ.get("OPENAI_API_KEY"))
 
     try:
         if use_foundry:
             logger.info("Running incident triage via Azure AI Foundry for %s run %d", repo, run_id)
             raw = await _run_with_foundry(prompt)
-        else:
+        elif use_anthropic:
+            logger.info("Running incident triage via Anthropic Claude for %s run %d", repo, run_id)
+            from backend.agents.pr_reviewer import _run_with_anthropic as _anthropic
+            raw = await _anthropic(f"{TRIAGE_INSTRUCTIONS}\n\n{prompt}")
+        elif use_openai:
             logger.info("Running incident triage via OpenAI fallback for %s run %d", repo, run_id)
             raw = await _run_with_openai(prompt)
+        else:
+            logger.warning("No AI backend configured — returning mock incident report")
+            raw = json.dumps({
+                "root_cause": "Mock incident: AI backend not configured. Set AZURE_PROJECT_CONNECTION_STRING, ANTHROPIC_API_KEY, or OPENAI_API_KEY.",
+                "affected_files": [],
+                "suggested_fix": "Configure an AI backend to enable real incident triage.",
+                "severity": "medium"
+            })
         return _parse_report(raw)
     except Exception as exc:
         logger.error("Incident triage agent failed: %s", exc, exc_info=True)

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import textwrap
 from typing import Any
 
@@ -72,13 +73,23 @@ async def _run_with_foundry(prompt: str) -> str:
     raise RuntimeError("No assistant response from Azure AI Foundry")
 
 
-async def _run_with_openai(prompt: str) -> str:
-    from openai import AsyncAzureOpenAI, AsyncOpenAI
+async def _run_with_anthropic(prompt: str) -> str:
+    import anthropic
+    client = anthropic.AsyncAnthropic()  # uses ANTHROPIC_API_KEY env var
+    message = await client.messages.create(
+        model="claude-sonnet-4-6",
+        max_tokens=2048,
+        system=REVIEW_INSTRUCTIONS,
+        messages=[{"role": "user", "content": prompt}],
+    )
+    return message.content[0].text
 
-    # Fall back to plain OpenAI-compatible call
+
+async def _run_with_openai(prompt: str) -> str:
+    from openai import AsyncOpenAI
     client = AsyncOpenAI()  # uses OPENAI_API_KEY env var
     response = await client.chat.completions.create(
-        model=settings.azure_model_deployment,
+        model="gpt-4o",
         messages=[
             {"role": "system", "content": REVIEW_INSTRUCTIONS},
             {"role": "user", "content": prompt},
@@ -87,6 +98,25 @@ async def _run_with_openai(prompt: str) -> str:
         response_format={"type": "json_object"},
     )
     return response.choices[0].message.content or ""
+
+
+def _mock_review(diff: str) -> str:
+    """Return a realistic mock review for local testing without API keys."""
+    import re
+    files_mentioned = re.findall(r"^\+\+\+ b/(.+)$", diff, re.MULTILINE)
+    file_str = files_mentioned[0] if files_mentioned else "unknown.py"
+    return json.dumps({
+        "summary": "Mock review: AI backend not configured. Set AZURE_PROJECT_CONNECTION_STRING, ANTHROPIC_API_KEY, or OPENAI_API_KEY to enable real reviews.",
+        "issues": [
+            {
+                "file": file_str,
+                "line": 1,
+                "severity": "info",
+                "comment": "This is a mock review. Configure an AI backend to get real code analysis."
+            }
+        ],
+        "overall": "comment"
+    })
 
 
 def _parse_review(raw: str) -> PRReview:
@@ -126,14 +156,22 @@ async def review_pr(repo: str, pr_number: int, diff: str, files: list[dict[str, 
     )
 
     use_foundry = bool(settings.azure_project_connection_string)
+    use_anthropic = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    use_openai = bool(os.environ.get("OPENAI_API_KEY"))
 
     try:
         if use_foundry:
             logger.info("Running PR review via Azure AI Foundry for %s#%d", repo, pr_number)
             raw = await _run_with_foundry(prompt)
-        else:
+        elif use_anthropic:
+            logger.info("Running PR review via Anthropic Claude for %s#%d", repo, pr_number)
+            raw = await _run_with_anthropic(prompt)
+        elif use_openai:
             logger.info("Running PR review via OpenAI fallback for %s#%d", repo, pr_number)
             raw = await _run_with_openai(prompt)
+        else:
+            logger.warning("No AI backend configured — returning mock review for %s#%d", repo, pr_number)
+            raw = _mock_review(diff)
         return _parse_review(raw)
     except Exception as exc:
         logger.error("PR review agent failed: %s", exc, exc_info=True)
