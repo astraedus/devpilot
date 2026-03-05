@@ -9,3 +9,5 @@ aiosqlite
 pydantic==2.9.0
 pydantic-settings
 python-dotenv
+anthropic
+hiero-sdk-python>=0.2.0

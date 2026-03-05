@@ -24,6 +24,7 @@ from backend.db.database import (
     update_review_job,
 )
 from backend.tools.github import GitHubTools
+from backend.tools.hedera import record_pr_review, record_incident
 
 logging.basicConfig(level=settings.log_level)
 logger = logging.getLogger(__name__)
@@ -80,7 +81,17 @@ async def _handle_pr_review(repo: str, pr_number: int, job_id: int) -> None:
             "comment": "COMMENT",
         }
         github_event = verdict_map.get(review.overall, "COMMENT")
-        comment_body = format_review_comment(review)
+
+        # Record verdict on Hedera HCS (immutable audit trail — no-op if not configured)
+        hcs_url = await record_pr_review(
+            repo=repo,
+            pr_number=pr_number,
+            verdict=review.overall,
+            summary=review.summary,
+            issues_count=len(review.issues),
+        )
+
+        comment_body = format_review_comment(review, hcs_url=hcs_url)
         await github.post_review(repo, pr_number, body=comment_body, event=github_event)
 
         result = review.model_dump()
@@ -97,7 +108,15 @@ async def _handle_incident_triage(repo: str, run_id: int, pr_number: int | None,
         logs = await github.get_workflow_run_logs(repo, run_id)
         report = await triage_incident(repo, run_id, logs)
 
-        comment_body = format_incident_comment(report, run_id)
+        # Record incident on Hedera HCS (no-op if not configured)
+        hcs_url = await record_incident(
+            repo=repo,
+            run_id=run_id,
+            severity=report.severity,
+            root_cause=report.root_cause,
+        )
+
+        comment_body = format_incident_comment(report, run_id, hcs_url=hcs_url)
         if pr_number:
             await github.post_pr_comment(repo, pr_number, comment_body)
         else:

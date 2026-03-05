@@ -137,7 +137,7 @@ async def triage_incident(repo: str, run_id: int, logs: str) -> IncidentReport:
         raise
 
 
-def format_incident_comment(report: IncidentReport, run_id: int) -> str:
+def format_incident_comment(report: IncidentReport, run_id: int, hcs_url: str | None = None) -> str:
     severity_icons = {"critical": "CRITICAL", "high": "HIGH", "medium": "MEDIUM"}
     icon = severity_icons.get(report.severity, report.severity.upper())
 
@@ -152,5 +152,8 @@ def format_incident_comment(report: IncidentReport, run_id: int) -> str:
             lines.append(f"- `{f}`")
         lines.append("")
     lines.append(f"### Suggested Fix\n{report.suggested_fix}")
-    lines.append("\n---\n_Posted by DevPilot_")
+    footer = "\n---\n_Posted by DevPilot_"
+    if hcs_url:
+        footer += f" | [Verified on Hedera]({hcs_url})"
+    lines.append(footer)
     return "\n".join(lines)

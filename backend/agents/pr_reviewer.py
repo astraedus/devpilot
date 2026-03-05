@@ -178,7 +178,7 @@ async def review_pr(repo: str, pr_number: int, diff: str, files: list[dict[str, 
         raise
 
 
-def format_review_comment(review: PRReview) -> str:
+def format_review_comment(review: PRReview, hcs_url: str | None = None) -> str:
     lines = ["## DevPilot PR Review\n", review.summary, ""]
     if review.issues:
         lines.append("### Issues Found\n")
@@ -192,5 +192,8 @@ def format_review_comment(review: PRReview) -> str:
         "comment": "Verdict: Comment Only",
     }
     lines.append(f"_{verdict_map.get(review.overall, review.overall)}_")
-    lines.append("\n---\n_Posted by DevPilot_")
+    footer = "\n---\n_Posted by DevPilot_"
+    if hcs_url:
+        footer += f" | [Verified on Hedera]({hcs_url})"
+    lines.append(footer)
     return "\n".join(lines)
