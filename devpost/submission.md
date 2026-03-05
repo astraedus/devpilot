@@ -69,6 +69,7 @@ Azure AI Foundry's agent SDK is well-suited for stateful, multi-turn analysis ta
 - tailwindcss
 - sqlite
 - httpx
+- hiero-sdk-python (Hedera HCS audit trail)
 
 ## Links
 
