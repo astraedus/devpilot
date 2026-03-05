@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import json
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -15,7 +16,9 @@ from backend.agents.incident import format_incident_comment, triage_incident
 from backend.agents.pr_reviewer import format_review_comment, review_pr
 from backend.config import settings
 from backend.db.database import (
+    get_incident_job,
     get_incident_jobs,
+    get_review_job,
     get_review_jobs,
     init_db,
     save_incident_job,
@@ -95,7 +98,9 @@ async def _handle_pr_review(repo: str, pr_number: int, job_id: int) -> None:
         await github.post_review(repo, pr_number, body=comment_body, event=github_event)
 
         result = review.model_dump()
-        await update_review_job(job_id, "done", result, hcs_url=hcs_url)
+        result_json = json.dumps(result, sort_keys=True)
+        result_hash = hashlib.sha256(result_json.encode()).hexdigest()
+        await update_review_job(job_id, "done", result, hcs_url=hcs_url, hcs_result_hash=result_hash)
         logger.info("Review complete for %s#%d (job %d)", repo, pr_number, job_id)
     except Exception as exc:
         logger.error("Review job %d failed: %s", job_id, exc, exc_info=True)
@@ -123,7 +128,9 @@ async def _handle_incident_triage(repo: str, run_id: int, pr_number: int | None,
             logger.info("No PR associated with run %d; skipping comment", run_id)
 
         result = report.model_dump()
-        await update_incident_job(job_id, "done", result, hcs_url=hcs_url)
+        result_json = json.dumps(result, sort_keys=True)
+        result_hash = hashlib.sha256(result_json.encode()).hexdigest()
+        await update_incident_job(job_id, "done", result, hcs_url=hcs_url, hcs_result_hash=result_hash)
         logger.info("Incident triage complete for %s run %d (job %d)", repo, run_id, job_id)
     except Exception as exc:
         logger.error("Incident job %d failed: %s", job_id, exc, exc_info=True)
@@ -187,6 +194,67 @@ async def list_reviews(limit: int = 20) -> list[dict]:
 @app.get("/api/incidents")
 async def list_incidents(limit: int = 20) -> list[dict]:
     return await get_incident_jobs(limit=min(limit, 100))
+
+
+@app.get("/api/reviews/{job_id}/audit")
+async def audit_review(job_id: int) -> dict:
+    job = await get_review_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Review job not found")
+    stored_hash = job.get("hcs_result_hash")
+    result_json = job.get("result_json")
+    if not result_json:
+        return {"job_id": job_id, "status": "no_result", "verified": False}
+    # Re-hash current result_json using same sort_keys=True convention
+    try:
+        current_data = json.loads(result_json)
+        current_json = json.dumps(current_data, sort_keys=True)
+        current_hash = hashlib.sha256(current_json.encode()).hexdigest()
+    except Exception:
+        current_hash = None
+    verified = stored_hash is not None and current_hash == stored_hash
+    tampered = stored_hash is not None and current_hash != stored_hash
+    return {
+        "job_id": job_id,
+        "repo": job.get("repo"),
+        "pr_number": job.get("pr_number"),
+        "hcs_url": job.get("hcs_url"),
+        "stored_hash": stored_hash,
+        "current_hash": current_hash,
+        "verified": verified,
+        "tampered": tampered,
+        "anchored": job.get("hcs_url") is not None,
+    }
+
+
+@app.get("/api/incidents/{job_id}/audit")
+async def audit_incident(job_id: int) -> dict:
+    job = await get_incident_job(job_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="Incident job not found")
+    stored_hash = job.get("hcs_result_hash")
+    result_json = job.get("result_json")
+    if not result_json:
+        return {"job_id": job_id, "status": "no_result", "verified": False}
+    try:
+        current_data = json.loads(result_json)
+        current_json = json.dumps(current_data, sort_keys=True)
+        current_hash = hashlib.sha256(current_json.encode()).hexdigest()
+    except Exception:
+        current_hash = None
+    verified = stored_hash is not None and current_hash == stored_hash
+    tampered = stored_hash is not None and current_hash != stored_hash
+    return {
+        "job_id": job_id,
+        "repo": job.get("repo"),
+        "run_id": job.get("run_id"),
+        "hcs_url": job.get("hcs_url"),
+        "stored_hash": stored_hash,
+        "current_hash": current_hash,
+        "verified": verified,
+        "tampered": tampered,
+        "anchored": job.get("hcs_url") is not None,
+    }
 
 
 @app.get("/health")
