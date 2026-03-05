@@ -73,16 +73,21 @@ async def _run_with_foundry(prompt: str) -> str:
     raise RuntimeError("No assistant response from Azure AI Foundry")
 
 
-async def _run_with_anthropic(prompt: str) -> str:
-    import anthropic
-    client = anthropic.AsyncAnthropic()  # uses ANTHROPIC_API_KEY env var
-    message = await client.messages.create(
-        model="claude-sonnet-4-6",
-        max_tokens=2048,
-        system=REVIEW_INSTRUCTIONS,
-        messages=[{"role": "user", "content": prompt}],
+async def _run_with_gemini(prompt: str) -> str:
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(
+        api_key=settings.gemini_api_key,
+        base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
     )
-    return message.content[0].text
+    response = await client.chat.completions.create(
+        model="gemini-2.0-flash",
+        messages=[
+            {"role": "system", "content": REVIEW_INSTRUCTIONS},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.2,
+    )
+    return response.choices[0].message.content or ""
 
 
 async def _run_with_openai(prompt: str) -> str:
@@ -156,16 +161,16 @@ async def review_pr(repo: str, pr_number: int, diff: str, files: list[dict[str, 
     )
 
     use_foundry = bool(settings.azure_project_connection_string)
-    use_anthropic = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    use_gemini = bool(settings.gemini_api_key)
     use_openai = bool(os.environ.get("OPENAI_API_KEY"))
 
     try:
         if use_foundry:
             logger.info("Running PR review via Azure AI Foundry for %s#%d", repo, pr_number)
             raw = await _run_with_foundry(prompt)
-        elif use_anthropic:
-            logger.info("Running PR review via Anthropic Claude for %s#%d", repo, pr_number)
-            raw = await _run_with_anthropic(prompt)
+        elif use_gemini:
+            logger.info("Running PR review via Gemini for %s#%d", repo, pr_number)
+            raw = await _run_with_gemini(prompt)
         elif use_openai:
             logger.info("Running PR review via OpenAI fallback for %s#%d", repo, pr_number)
             raw = await _run_with_openai(prompt)

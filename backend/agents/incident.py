@@ -109,17 +109,17 @@ async def triage_incident(repo: str, run_id: int, logs: str) -> IncidentReport:
     )
 
     use_foundry = bool(settings.azure_project_connection_string)
-    use_anthropic = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    use_gemini = bool(settings.gemini_api_key)
     use_openai = bool(os.environ.get("OPENAI_API_KEY"))
 
     try:
         if use_foundry:
             logger.info("Running incident triage via Azure AI Foundry for %s run %d", repo, run_id)
             raw = await _run_with_foundry(prompt)
-        elif use_anthropic:
-            logger.info("Running incident triage via Anthropic Claude for %s run %d", repo, run_id)
-            from backend.agents.pr_reviewer import _run_with_anthropic as _anthropic
-            raw = await _anthropic(f"{TRIAGE_INSTRUCTIONS}\n\n{prompt}")
+        elif use_gemini:
+            logger.info("Running incident triage via Gemini for %s run %d", repo, run_id)
+            from backend.agents.pr_reviewer import _run_with_gemini as _gemini
+            raw = await _gemini(f"{TRIAGE_INSTRUCTIONS}\n\n{prompt}")
         elif use_openai:
             logger.info("Running incident triage via OpenAI fallback for %s run %d", repo, run_id)
             raw = await _run_with_openai(prompt)

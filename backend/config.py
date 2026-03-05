@@ -6,6 +6,9 @@ class Settings(BaseSettings):
     azure_project_connection_string: str = ""
     azure_model_deployment: str = "gpt-4o"
 
+    # Gemini (fallback — free tier, OpenAI-compatible)
+    gemini_api_key: str = ""
+
     # GitHub
     github_token: str = ""
     github_webhook_secret: str = ""

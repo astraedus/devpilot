@@ -44,7 +44,7 @@ The GitHub webhook flow requires running agent jobs as FastAPI background tasks 
 
 - End-to-end agentic workflow: webhook in, GitHub comment out, no human in the loop
 - Works with any GitHub repository via webhook configuration
-- Graceful multi-tier fallback: Azure AI Foundry -> Anthropic Claude -> OpenAI -> mock
+- Graceful multi-tier fallback: Azure AI Foundry -> Gemini -> OpenAI -> mock
 - Production-ready: HMAC webhook validation, async background tasks, error logging
 
 ## What We Learned
