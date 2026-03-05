@@ -1,62 +1,100 @@
 # DevPilot
 
-AI-powered GitHub PR review and CI incident triage agent.
-Built for AI Dev Days (Microsoft Azure AI Foundry + GitHub).
+> AI agent that reviews your PRs and triages CI failures.
 
-## What it does
+DevPilot is an agentic GitHub companion built on Azure AI Foundry. When a pull request is opened, DevPilot analyzes the diff, identifies bugs and security issues, and posts a structured code review as a GitHub review comment. When a CI workflow fails, DevPilot reads the failure logs, identifies the root cause, and posts an incident card on the PR.
 
-1. Receives GitHub webhooks (PR opened/updated, workflow_run failed)
-2. PR Review agent: reads diff, generates structured review comments posted to GitHub
-3. Incident agent: when CI fails, reads logs, identifies root cause, posts a root cause card as PR comment
+Built for the Microsoft AI Dev Days Hackathon 2026.
+
+## What It Does
+
+**PR Review**
+- Triggered automatically when a PR is opened or updated via GitHub webhook
+- Azure AI Foundry agent reads the diff and changed files
+- Posts a structured review: summary, inline issue comments, verdict (approve / request changes / comment)
+- Categorizes issues: bugs, security vulnerabilities, performance problems, style violations
+
+**CI Incident Triage**
+- Triggered when a GitHub Actions workflow run fails
+- Agent reads failure logs and identifies root cause
+- Posts an incident card: root cause, affected files, suggested fix, severity level
 
 ## Architecture
 
-- FastAPI backend (webhook receiver + REST API)
-- Azure AI Foundry for agent orchestration (azure-ai-projects SDK)
-- Falls back to OpenAI-compatible client if Foundry not configured
-- GitHub API (httpx) for repo access and posting comments
-- SQLite (aiosqlite) for job history
-- Next.js 14 frontend (placeholder, see frontend/README.md)
+```
+GitHub PR opened / CI failure
+  |
+  v
+FastAPI webhook receiver (HMAC validated)
+  |
+  +-- PR Review Agent (Azure AI Foundry)
+  |     +-- GitHub API: get diff + files
+  |     +-- Azure AI Foundry: analyze code
+  |     +-- GitHub API: post review comment
+  |
+  +-- Incident Agent (Azure AI Foundry)
+        +-- GitHub API: get workflow logs
+        +-- Azure AI Foundry: identify root cause
+        +-- GitHub API: post incident card
 
-## Quick start
+Next.js Dashboard: live review + incident history
+```
+
+## Tech Stack
+
+- **AI**: Azure AI Foundry (Agent Service) + GPT-4o
+- **Backend**: Python 3.12, FastAPI, aiosqlite
+- **Frontend**: Next.js 15, Tailwind CSS
+- **Integrations**: GitHub API (webhooks, PR reviews, workflow logs)
+
+## Setup
+
+### Prerequisites
+
+- Azure AI Foundry project (get connection string from Azure AI Studio)
+- GitHub personal access token (repo, pull_requests scope)
+- Python 3.12+, Node.js 18+
+
+### Backend
 
 ```bash
 cd backend
-python -m venv venv && source venv/bin/activate
+python -m venv venv
+source venv/bin/activate
 pip install -r requirements.txt
 
-cp ../.env.example ../.env
-# Fill in .env with your credentials
+cp ../.env.example .env
+# Edit .env with your credentials
 
-python -m backend.main
+uvicorn backend.main:app --reload --port 8000
 ```
 
-## Webhook setup
+### Frontend
 
-Point your GitHub repo webhook to:
-```
-POST https://<your-host>/webhooks/github
-Content-Type: application/json
-Secret: <GITHUB_WEBHOOK_SECRET>
-Events: Pull requests, Workflow runs
+```bash
+cd frontend
+npm install
+npm run dev  # runs on port 3001
 ```
 
-## API
+### GitHub Webhook
 
-| Endpoint | Description |
-|---|---|
-| POST /webhooks/github | GitHub webhook receiver |
-| GET /api/reviews | List recent PR reviews |
-| GET /api/incidents | List recent CI incidents |
-| GET /health | Health check |
+1. Go to your repository Settings > Webhooks > Add webhook
+2. Payload URL: https://your-domain.com/webhooks/github
+3. Content type: application/json
+4. Secret: your GITHUB_WEBHOOK_SECRET value
+5. Events: Select "Pull requests" and "Workflow runs"
 
-## Environment variables
+## Environment Variables
 
-See `.env.example` for all required variables.
+```
+AZURE_PROJECT_CONNECTION_STRING=  # From Azure AI Foundry project settings
+AZURE_MODEL_DEPLOYMENT=gpt-4o     # Model deployment name
+GITHUB_TOKEN=                     # PAT with repo + pull_requests scope
+GITHUB_WEBHOOK_SECRET=            # Random secret for webhook HMAC
+PORT=8000
+```
 
-| Variable | Description |
-|---|---|
-| AZURE_PROJECT_CONNECTION_STRING | From Azure AI Foundry project |
-| AZURE_MODEL_DEPLOYMENT | Model to use (default: gpt-4o) |
-| GITHUB_TOKEN | PAT with repo + workflow scope |
-| GITHUB_WEBHOOK_SECRET | Webhook HMAC secret |
+## License
+
+MIT
