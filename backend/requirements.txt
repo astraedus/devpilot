@@ -1,0 +1,11 @@
+fastapi==0.115.0
+uvicorn==0.30.0
+azure-ai-projects>=1.0.0b3
+azure-identity
+openai>=1.50.0
+PyGithub==2.3.0
+httpx
+aiosqlite
+pydantic==2.9.0
+pydantic-settings
+python-dotenv
