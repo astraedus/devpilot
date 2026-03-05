@@ -32,6 +32,35 @@ function parseResult<T>(json: string | null): T | null {
 
 // ---- Badge components ----
 
+function HCSBadge({ url }: { url: string }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '4px',
+        padding: '2px 7px',
+        borderRadius: '4px',
+        fontSize: '11px',
+        fontWeight: 600,
+        background: '#0c1a2e',
+        color: '#38bdf8',
+        border: '1px solid #1e3a5f',
+        textDecoration: 'none',
+        letterSpacing: '0.03em',
+        flexShrink: 0,
+      }}
+      title="Verified on Hedera Consensus Service"
+    >
+      <span style={{ fontSize: '9px' }}>&#9632;</span> HCS
+    </a>
+  );
+}
+
+
 function VerdictBadge({ verdict }: { verdict: string }) {
   const styles: Record<string, { background: string; color: string; label: string }> = {
     approve: { background: '#14532d', color: '#4ade80', label: 'Approved' },
@@ -141,6 +170,7 @@ function SkeletonCard() {
 function ReviewCard({ job }: { job: ReviewJob }) {
   const review = parseResult<PRReview>(job.result_json);
   const shortRepo = job.repo.split('/').slice(-2).join('/');
+  const hcsUrl = job.hcs_url ?? null;
 
   return (
     <div
@@ -194,13 +224,16 @@ function ReviewCard({ job }: { job: ReviewJob }) {
       )}
 
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        {review?.issues && review.issues.length > 0 ? (
-          <span style={{ fontSize: '12px', color: '#888' }}>
-            {review.issues.length} issue{review.issues.length !== 1 ? 's' : ''} found
-          </span>
-        ) : (
-          <span style={{ fontSize: '12px', color: '#888' }}>No issues</span>
-        )}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {review?.issues && review.issues.length > 0 ? (
+            <span style={{ fontSize: '12px', color: '#888' }}>
+              {review.issues.length} issue{review.issues.length !== 1 ? 's' : ''} found
+            </span>
+          ) : (
+            <span style={{ fontSize: '12px', color: '#888' }}>No issues</span>
+          )}
+          {hcsUrl && <HCSBadge url={hcsUrl} />}
+        </div>
         <span style={{ fontSize: '11px', color: '#555' }}>{timeAgo(job.created_at)}</span>
       </div>
     </div>
@@ -212,6 +245,7 @@ function ReviewCard({ job }: { job: ReviewJob }) {
 function IncidentCard({ job }: { job: IncidentJob }) {
   const report = parseResult<IncidentReport>(job.result_json);
   const shortRepo = job.repo.split('/').slice(-2).join('/');
+  const hcsUrl = job.hcs_url ?? null;
 
   return (
     <div
@@ -288,7 +322,8 @@ function IncidentCard({ job }: { job: IncidentJob }) {
         </div>
       )}
 
-      <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>{hcsUrl && <HCSBadge url={hcsUrl} />}</div>
         <span style={{ fontSize: '11px', color: '#555' }}>{timeAgo(job.created_at)}</span>
       </div>
     </div>

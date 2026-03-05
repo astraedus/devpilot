@@ -18,6 +18,7 @@ export interface ReviewJob {
   status: 'pending' | 'running' | 'done' | 'error';
   created_at: string | null;
   result_json: string | null;
+  hcs_url: string | null;
 }
 
 export interface IncidentReport {
@@ -34,4 +35,5 @@ export interface IncidentJob {
   status: 'pending' | 'running' | 'done' | 'error';
   created_at: string | null;
   result_json: string | null;
+  hcs_url: string | null;
 }

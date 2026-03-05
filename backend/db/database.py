@@ -17,7 +17,8 @@ CREATE TABLE IF NOT EXISTS review_jobs (
     pr_number INTEGER NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
     created_at TEXT NOT NULL,
-    result_json TEXT
+    result_json TEXT,
+    hcs_url TEXT
 )
 """
 
@@ -28,7 +29,8 @@ CREATE TABLE IF NOT EXISTS incident_jobs (
     run_id INTEGER NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
     created_at TEXT NOT NULL,
-    result_json TEXT
+    result_json TEXT,
+    hcs_url TEXT
 )
 """
 
@@ -37,6 +39,12 @@ async def init_db() -> None:
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(CREATE_REVIEW_JOBS_TABLE)
         await db.execute(CREATE_INCIDENT_JOBS_TABLE)
+        # Migrate existing tables — add hcs_url if missing
+        for table in ("review_jobs", "incident_jobs"):
+            try:
+                await db.execute(f"ALTER TABLE {table} ADD COLUMN hcs_url TEXT")
+            except Exception:
+                pass  # Column already exists
         await db.commit()
     logger.info("Database initialized at %s", DB_PATH)
 
@@ -53,12 +61,12 @@ async def save_review_job(repo: str, pr_number: int, status: str = "pending", re
         return cursor.lastrowid
 
 
-async def update_review_job(job_id: int, status: str, result: dict | None = None) -> None:
+async def update_review_job(job_id: int, status: str, result: dict | None = None, hcs_url: str | None = None) -> None:
     result_json = json.dumps(result) if result else None
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "UPDATE review_jobs SET status = ?, result_json = ? WHERE id = ?",
-            (status, result_json, job_id),
+            "UPDATE review_jobs SET status = ?, result_json = ?, hcs_url = ? WHERE id = ?",
+            (status, result_json, hcs_url, job_id),
         )
         await db.commit()
 
@@ -86,12 +94,12 @@ async def save_incident_job(repo: str, run_id: int, status: str = "pending", res
         return cursor.lastrowid
 
 
-async def update_incident_job(job_id: int, status: str, result: dict | None = None) -> None:
+async def update_incident_job(job_id: int, status: str, result: dict | None = None, hcs_url: str | None = None) -> None:
     result_json = json.dumps(result) if result else None
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
-            "UPDATE incident_jobs SET status = ?, result_json = ? WHERE id = ?",
-            (status, result_json, job_id),
+            "UPDATE incident_jobs SET status = ?, result_json = ?, hcs_url = ? WHERE id = ?",
+            (status, result_json, hcs_url, job_id),
         )
         await db.commit()
 

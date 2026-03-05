@@ -95,7 +95,7 @@ async def _handle_pr_review(repo: str, pr_number: int, job_id: int) -> None:
         await github.post_review(repo, pr_number, body=comment_body, event=github_event)
 
         result = review.model_dump()
-        await update_review_job(job_id, "done", result)
+        await update_review_job(job_id, "done", result, hcs_url=hcs_url)
         logger.info("Review complete for %s#%d (job %d)", repo, pr_number, job_id)
     except Exception as exc:
         logger.error("Review job %d failed: %s", job_id, exc, exc_info=True)
@@ -123,7 +123,7 @@ async def _handle_incident_triage(repo: str, run_id: int, pr_number: int | None,
             logger.info("No PR associated with run %d; skipping comment", run_id)
 
         result = report.model_dump()
-        await update_incident_job(job_id, "done", result)
+        await update_incident_job(job_id, "done", result, hcs_url=hcs_url)
         logger.info("Incident triage complete for %s run %d (job %d)", repo, run_id, job_id)
     except Exception as exc:
         logger.error("Incident job %d failed: %s", job_id, exc, exc_info=True)
