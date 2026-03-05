@@ -73,6 +73,23 @@ async def _run_with_foundry(prompt: str) -> str:
     raise RuntimeError("No assistant response from Azure AI Foundry")
 
 
+async def _run_with_groq(prompt: str) -> str:
+    from openai import AsyncOpenAI
+    client = AsyncOpenAI(
+        api_key=settings.groq_api_key,
+        base_url="https://api.groq.com/openai/v1/",
+    )
+    response = await client.chat.completions.create(
+        model="llama-3.1-70b-versatile",
+        messages=[
+            {"role": "system", "content": REVIEW_INSTRUCTIONS},
+            {"role": "user", "content": prompt},
+        ],
+        temperature=0.2,
+    )
+    return response.choices[0].message.content or ""
+
+
 async def _run_with_gemini(prompt: str) -> str:
     from openai import AsyncOpenAI
     client = AsyncOpenAI(
@@ -161,6 +178,7 @@ async def review_pr(repo: str, pr_number: int, diff: str, files: list[dict[str, 
     )
 
     use_foundry = bool(settings.azure_project_connection_string)
+    use_groq = bool(settings.groq_api_key)
     use_gemini = bool(settings.gemini_api_key)
     use_openai = bool(os.environ.get("OPENAI_API_KEY"))
 
@@ -168,6 +186,9 @@ async def review_pr(repo: str, pr_number: int, diff: str, files: list[dict[str, 
         if use_foundry:
             logger.info("Running PR review via Azure AI Foundry for %s#%d", repo, pr_number)
             raw = await _run_with_foundry(prompt)
+        elif use_groq:
+            logger.info("Running PR review via Groq for %s#%d", repo, pr_number)
+            raw = await _run_with_groq(prompt)
         elif use_gemini:
             logger.info("Running PR review via Gemini for %s#%d", repo, pr_number)
             raw = await _run_with_gemini(prompt)

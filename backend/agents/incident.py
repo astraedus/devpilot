@@ -109,6 +109,7 @@ async def triage_incident(repo: str, run_id: int, logs: str) -> IncidentReport:
     )
 
     use_foundry = bool(settings.azure_project_connection_string)
+    use_groq = bool(settings.groq_api_key)
     use_gemini = bool(settings.gemini_api_key)
     use_openai = bool(os.environ.get("OPENAI_API_KEY"))
 
@@ -116,6 +117,10 @@ async def triage_incident(repo: str, run_id: int, logs: str) -> IncidentReport:
         if use_foundry:
             logger.info("Running incident triage via Azure AI Foundry for %s run %d", repo, run_id)
             raw = await _run_with_foundry(prompt)
+        elif use_groq:
+            logger.info("Running incident triage via Groq for %s run %d", repo, run_id)
+            from backend.agents.pr_reviewer import _run_with_groq as _groq
+            raw = await _groq(f"{TRIAGE_INSTRUCTIONS}\n\n{prompt}")
         elif use_gemini:
             logger.info("Running incident triage via Gemini for %s run %d", repo, run_id)
             from backend.agents.pr_reviewer import _run_with_gemini as _gemini

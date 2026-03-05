@@ -6,7 +6,10 @@ class Settings(BaseSettings):
     azure_project_connection_string: str = ""
     azure_model_deployment: str = "gpt-4o"
 
-    # Gemini (fallback — free tier, OpenAI-compatible)
+    # Groq (fallback — free tier, OpenAI-compatible, llama-3.1-70b)
+    groq_api_key: str = ""
+
+    # Gemini (secondary fallback — free tier, OpenAI-compatible)
     gemini_api_key: str = ""
 
     # GitHub
