@@ -4,7 +4,15 @@
 
 DevPilot is an agentic GitHub companion built on Azure AI Foundry. When a pull request is opened, DevPilot analyzes the diff, identifies bugs and security issues, and posts a structured code review as a GitHub review comment. When a CI workflow fails, DevPilot reads the failure logs, identifies the root cause, and posts an incident card on the PR.
 
-Built for the Microsoft AI Dev Days Hackathon 2026.
+Originally built for the Microsoft AI Dev Days Hackathon 2026 (cancelled -- registration closed Feb 22).
+
+## Hackathon Submissions
+
+| Hackathon | Platform | Track | Status |
+|-----------|----------|-------|--------|
+| ~~Microsoft AI Dev Days 2026~~ | ~~DevPost~~ | ~~AI Agents~~ | CANCELLED (registration closed Feb 22) |
+
+**Note**: The Hedera HCS integration originally added to DevPilot was expanded into a standalone project, [ProofMint](https://github.com/astraedus/proofmint), which adds HTS NFT minting + Mirror Node verification on top of HCS. ProofMint is being submitted to the Hedera Hello Future Apex hackathon instead.
 
 ## What It Does
 
